@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ПКО — быстрое заполнение</title>
+<style>
+  :root{
+    --ink:#1a1a1a;
+    --line:#444;
+    --accent:#2f6fed;
+    --bg:#f2f4f7;
+    --panel:#fff;
+    --muted:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .app{
+    display:flex;
+    min-height:100vh;
+  }
+  /* ---------- ЛЕВАЯ ПАНЕЛЬ: ФОРМА ВВОДА ---------- */
+  .panel{
+    width:360px;
+    flex:0 0 360px;
+    background:var(--panel);
+    padding:24px 20px;
+    box-shadow:2px 0 10px rgba(0,0,0,.06);
+    overflow-y:auto;
+  }
+  .panel h1{
+    font-size:18px;
+    margin:0 0 4px;
+  }
+  .panel .sub{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:20px;
+  }
+  .field{
+    margin-bottom:14px;
+  }
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:bold;
+    color:#333;
+    margin-bottom:4px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:9px 10px;
+    font-size:14px;
+    border:1px solid #cfd4dc;
+    border-radius:6px;
+    font-family:inherit;
+  }
+  .field input:focus, .field select:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(47,111,237,.15);
+  }
+  .field small{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    margin-top:3px;
+  }
+  details.settings{
+    margin:18px 0;
+    border:1px solid #e3e6ea;
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  details.settings summary{
+    cursor:pointer;
+    font-size:13px;
+    font-weight:bold;
+    color:#333;
+  }
+  details.settings .field{ margin-top:10px; }
+
+  .btns{
+    display:flex;
+    gap:8px;
+    margin-top:20px;
+  }
+  button{
+    flex:1;
+    padding:11px 10px;
+    font-size:14px;
+    border:none;
+    border-radius:7px;
+    cursor:pointer;
+    font-weight:bold;
+    font-family:inherit;
+  }
+  #printBtn{
+    background:var(--accent);
+    color:#fff;
+  }
+  #printBtn:hover{ background:#255bc4; }
+  #clearBtn{
+    background:#eceff3;
+    color:#333;
+  }
+  #clearBtn:hover{ background:#dde1e7; }
+  .hint{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:14px;
+    line-height:1.5;
+  }
+
+  /* ---------- ПРАВАЯ ОБЛАСТЬ: ПРЕДПРОСМОТР БЛАНКА ---------- */
+  .preview-wrap{
+    flex:1;
+    padding:30px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    overflow:auto;
+  }
+  .sheet{
+    width:210mm;
+    min-height:148mm;
+    background:#fff;
+    box-shadow:0 2px 14px rgba(0,0,0,.15);
+    padding:14mm 10mm 8mm;
+    font-size:8.6pt;
+    line-height:1.25;
+    color:#000;
+  }
+  .row{ display:flex; }
+  .col-left{ width:66%; padding-right:6mm; }
+  .col-right{ width:34%; border-left:1px dashed #888; padding-left:6mm; }
+
+  .top-line{
+    display:flex;
+    justify-content:space-between;
+    font-size:6.5pt;
+    margin-bottom:2mm;
+  }
+  .top-line .right-org{
+    text-align:center;
+    font-size:8pt;
+    font-weight:bold;
+  }
+  .org-name{
+    font-weight:bold;
+    font-size:9pt;
+    border-bottom:1px solid #000;
+    padding-bottom:1mm;
+    margin-bottom:0.5mm;
+  }
+  .caption-center{
+    text-align:center;
+    font-size:6.5pt;
+    color:#333;
+  }
+  .doc-title{
+    font-weight:bold;
+    font-size:10pt;
+    margin:2mm 0 1mm;
+    display:inline-block;
+  }
+
+  table.meta{
+    border-collapse:collapse;
+    width:100%;
+    margin:1.5mm 0;
+  }
+  table.meta td{
+    border:1px solid #000;
+    text-align:center;
+    padding:1mm;
+    font-size:8pt;
+  }
+  table.meta td.label{
+    font-size:6.3pt;
+    color:#333;
+    border-bottom:none;
+  }
+
+  table.codes{
+    border-collapse:collapse;
+    width:60%;
+    margin-left:auto;
+  }
+  table.codes td{
+    border:1px solid #000;
+    text-align:center;
+    padding:0.8mm 2mm;
+    font-size:7.5pt;
+  }
+
+  .line-label{
+    font-size:6.3pt;
+    color:#333;
+  }
+
+  table.debkred{
+    border-collapse:collapse;
+    width:100%;
+    margin:2mm 0;
+  }
+  table.debkred th, table.debkred td{
+    border:1px solid #000;
+    text-align:center;
+    padding:1mm;
+    font-size:7pt;
+  }
+  table.debkred th{ font-weight:normal; font-size:6.5pt; }
+  table.debkred td.big{ font-size:8.5pt; padding:2mm 1mm; }
+
+  .kv{ margin:1.6mm 0; }
+  .kv .cap{ font-size:6.3pt; color:#333; }
+  .kv .val{
+    border-bottom:1px solid #000;
+    min-height:4.2mm;
+    font-size:8.5pt;
+    padding:0.3mm 1mm;
+  }
+
+  .sign-row{ margin-top:3mm; }
+  .sign-row .line{
+    display:flex;
+    gap:3mm;
+    margin-bottom:1mm;
+    align-items:flex-end;
+  }
+  .sign-row .line b{ font-size:8pt; white-space:nowrap; }
+  .sign-row .fill{
+    flex:1;
+    border-bottom:1px solid #000;
+    min-height:4mm;
+  }
+  .sign-row .name{
+    min-width:26mm;
+    border-bottom:1px solid #000;
+    text-align:center;
+    font-size:8pt;
+  }
+  .cap-small{ font-size:6.3pt; color:#333; text-align:center; }
+
+  .mp{
+    font-weight:bold;
+    font-size:8pt;
+    margin-top:4mm;
+  }
+
+  /* ---------- ПЕЧАТЬ ---------- */
+  @media print{
+    body{ background:#fff; }
+    .panel{ display:none; }
+    .preview-wrap{ padding:0; }
+    .sheet{
+      box-shadow:none;
+      width:auto;
+      min-height:0;
+      margin:0;
+    }
+    @page{ size:A4 portrait; margin:14mm 10mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= ФОРМА ВВОДА ================= -->
+  <div class="panel">
+    <h1>ПКО за пару секунд</h1>
+    <div class="sub">Заполни поля — бланк справа обновится сам. Потом жми «Печать».</div>
+
+    <div class="field">
+      <label>№ заказа</label>
+      <input type="text" id="orderNo" placeholder="напр. 9187" inputmode="numeric">
+    </div>
+
+    <div class="field">
+      <label>Сумма заказа, руб.</label>
+      <input type="text" id="amount" placeholder="напр. 36000 или 36000.50" inputmode="decimal">
+    </div>
+
+    <div class="field">
+      <label>Дата</label>
+      <input type="date" id="docDate">
+    </div>
+
+    <div class="field">
+      <label>Принято от (ФИО)</label>
+      <input type="text" id="clientName" placeholder="Иванов Иван Иванович">
+    </div>
+
+    <details class="settings">
+      <summary>Доп. настройки</summary>
+
+      <div class="field">
+        <label>№ ПКО (если отличается от № заказа)</label>
+        <input type="text" id="pkoNo" placeholder="по умолчанию = № заказа">
+      </div>
+
+      <div class="field">
+        <label>Автонумерация ПКО</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="checkbox" id="autoNumEnabled" style="width:auto;">
+          <span style="font-size:12px;">включена, следующий №:</span>
+        </div>
+        <input type="number" id="nextPkoNo" value="1" min="1" style="margin-top:6px;">
+        <small>Если включено — поле «№ ПКО» подставляется автоматически и растёт на 1 после каждой печати.</small>
+      </div>
+
+      <div class="field">
+        <label>Ставка НДС, %</label>
+        <input type="number" id="vatRate" value="22" step="1" min="0" max="30">
+        <small>НДС считается «в том числе», из суммы (сумма × ставка / (100+ставка))</small>
+      </div>
+
+      <div class="field">
+        <label>Организация</label>
+        <input type="text" id="orgName" value='ООО "ОТДЕЛКИНО"'>
+      </div>
+
+      <div class="field">
+        <label>ОКПО</label>
+        <input type="text" id="okpo" value="06113018">
+      </div>
+
+      <div class="field">
+        <label>Валюта</label>
+        <select id="currencyPreset">
+          <option value="RUB" selected>Российский рубль</option>
+          <option value="USD">Доллар США</option>
+          <option value="EUR">Евро</option>
+          <option value="KZT">Тенге (KZ)</option>
+          <option value="BYN">Белорусский рубль</option>
+          <option value="CUSTOM">Своя — задать вручную ниже</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Валюта прописью (1 / 2-4 / 5+)</label>
+        <input type="text" id="currencyForms" value="рубль,рубля,рублей">
+        <small>напр. рубль,рубля,рублей — через запятую, без пробелов</small>
+      </div>
+      <div class="field">
+        <label>Род валюты</label>
+        <select id="currencyGender">
+          <option value="m" selected>мужской (один рубль)</option>
+          <option value="f">женский (одна гривна)</option>
+          <option value="n">средний (одно евро)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Сокращение валюты (для сумм цифрами)</label>
+        <input type="text" id="currencyAbbr" value="руб.">
+      </div>
+      <div class="field">
+        <label>Копейки/центы прописью (1 / 2-4 / 5+)</label>
+        <input type="text" id="subunitForms" value="копейка,копейки,копеек">
+      </div>
+      <div class="field">
+        <label>Род копеек/центов</label>
+        <select id="subunitGender">
+          <option value="f" selected>женский (одна копейка)</option>
+          <option value="m">мужской (один цент)</option>
+          <option value="n">средний</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Главный бухгалтер / кассир (ФИО)</label>
+        <input type="text" id="accountant" value="Шекера Н. В.">
+      </div>
+
+      <div class="field">
+        <label>Кассир (ФИО, принял деньги)</label>
+        <input type="text" id="cashierName" placeholder="напр. Петрова А. С.">
+      </div>
+
+      <div class="field">
+        <label>Приложение (основание)</label>
+        <input type="text" id="attachment" value="Заказ клиента">
+      </div>
+    </details>
+
+    <div class="btns">
+      <button id="printBtn">🖨 Печать / в PDF</button>
+      <button id="clearBtn">Очистить</button>
+    </div>
+
+    <div class="hint">
+      Чтобы получить готовый PDF: жми «Печать / в PDF» → в диалоге печати выбери принтер
+      «Сохранить как PDF». Ничего никуда не отправляется — всё считается прямо в браузере.
+      Можно сохранить эту HTML-страницу себе и открывать офлайн.
+    </div>
+  </div>
+
+  <!-- ================= ПРЕДПРОСМОТР БЛАНКА ================= -->
+  <div class="preview-wrap">
+    <div class="sheet" id="sheet">
+
+      <div class="row">
+
+        <!-- ============ ЛЕВАЯ ЧАСТЬ: ПКО ============ -->
+        <div class="col-left">
+          <div style="display:flex; justify-content:flex-end;">
+            <div style="text-align:right; font-size:6.5pt; width:75%; white-space:nowrap;">
+              Унифицированная форма КО-1<br>
+              Утверждена постановлением Госкомстата России от 18.08.98 № 88
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:1mm;">
+            <div style="width:60%;">
+              <div class="org-name" id="p_orgName1" style="text-align:center;">ООО "ОТДЕЛКИНО"</div>
+              <div class="caption-center">организация</div>
+            </div>
+            <table class="codes" style="width:38%; margin-left:0;">
+              <tr><td colspan="2" class="label" style="font-weight:bold;">Коды</td></tr>
+              <tr><td class="label">Форма по ОКУД</td><td><b>0310001</b></td></tr>
+              <tr><td class="label">по ОКПО</td><td id="p_okpo">06113018</td></tr>
+            </table>
+          </div>
+
+          <div style="border-bottom:1px solid #000; min-height:4mm; margin:1.5mm 0;"></div>
+          <div class="caption-center">структурное подразделение</div>
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:2mm;">
+            <div class="doc-title">ПРИХОДНЫЙ КАССОВЫЙ ОРДЕР</div>
+            <table class="meta" style="width:45%;">
+              <tr>
+                <td class="label">Номер документа</td>
+                <td class="label">Дата составления</td>
+              </tr>
+              <tr>
+                <td id="p_pkoNo">&nbsp;</td>
+                <td id="p_date1">&nbsp;</td>
+              </tr>
+            </table>
+          </div>
+
+          <table class="debkred">
+            <tr>
+              <th rowspan="2">Дебет</th>
+              <th colspan="3">Кредит</th>
+              <th rowspan="2">Сумма,<br>руб. коп.</th>
+              <th rowspan="2">Код целевого назначения</th>
+            </tr>
+            <tr>
+              <th>код структурного подразделения</th>
+              <th>корреспондирующий счет, субсчет</th>
+              <th>код аналитического учета</th>
+            </tr>
+            <tr>
+              <td class="big">50.01</td>
+              <td>&nbsp;</td>
+              <td class="big">62.01</td>
+              <td>&nbsp;</td>
+              <td class="big" id="p_amountNum">0-00</td>
+              <td>&nbsp;</td>
+            </tr>
+          </table>
+
+          <div class="kv">
+            <div class="cap">Принято от:</div>
+            <div class="val" id="p_client1">&nbsp;</div>
+          </div>
+          <div class="kv">
+            <div class="cap">Основание:</div>
+            <div class="val" id="p_basis1">&nbsp;</div>
+          </div>
+          <div class="kv">
+            <div class="cap">Сумма:</div>
+            <div class="val" id="p_amountWords">&nbsp;</div>
+          </div>
+          <div class="cap-small">прописью</div>
+
+          <div class="kv" style="margin-top:2mm;">
+            <span class="cap">В том числе: НДС (<span id="p_vatRate1">22</span>%) </span>
+            <span id="p_vatAmount1"></span>
+          </div>
+
+          <div class="kv">
+            <span class="cap">Приложение: </span><span id="p_attachment">Заказ клиента</span>
+          </div>
+
+          <div class="sign-row">
+            <div class="line">
+              <b>Главный бухгалтер</b>
+              <div class="fill"></div>
+              <div class="name" id="p_acc1">&nbsp;</div>
+            </div>
+            <div style="display:flex; gap:32mm; padding-left:32mm;">
+              <span class="cap-small">подпись</span>
+              <span class="cap-small">расшифровка подписи</span>
+            </div>
+          </div>
+
+          <div class="sign-row">
+            <div class="line">
+              <b>Получил кассир</b>
+              <div class="fill"></div>
+              <div class="name" id="p_cashier1">&nbsp;</div>
+            </div>
+            <div style="display:flex; gap:32mm; padding-left:26mm;">
+              <span class="cap-small">подпись</span>
+              <span class="cap-small">расшифровка подписи</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ ПРАВАЯ ЧАСТЬ: КВИТАНЦИЯ ============ -->
+        <div class="col-right">
+          <div class="org-name" id="p_orgName2" style="text-align:center;">ООО "ОТДЕЛКИНО"</div>
+          <div class="caption-center">организация</div>
+
+          <div class="doc-title" style="text-align:center; display:block;">КВИТАНЦИЯ</div>
+          <div class="caption-center">к приходному кассовому ордеру</div>
+
+          <div class="kv" style="display:flex; gap:2mm; align-items:baseline;">
+            <span class="cap">№</span>
+            <span class="val" style="flex:1;" id="p_pkoNo2">&nbsp;</span>
+          </div>
+          <div class="kv" style="display:flex; gap:2mm; align-items:baseline;">
+            <span class="cap">от</span>
+            <span class="val" style="flex:1;" id="p_date2">&nbsp;</span>
+          </div>
+
+          <div class="kv">
+            <div class="cap">Принято от</div>
+            <div class="val" id="p_client2">&nbsp;</div>
+          </div>
+
+          <div class="kv">
+            <div class="cap">Основание</div>
+            <div class="val" id="p_basis2">&nbsp;</div>
+          </div>
+
+          <div class="kv" style="margin-top:2mm;">
+            <span class="cap">Сумма</span>
+            <div class="val" id="p_amountNum2">&nbsp;</div>
+          </div>
+          <div class="cap-small" style="text-align:right;">цифрами</div>
+
+          <div class="kv">
+            <div class="val" id="p_amountWords2">&nbsp;</div>
+          </div>
+          <div class="cap-small" style="text-align:right;">прописью</div>
+
+          <div class="kv" style="margin-top:2mm;">
+            <span class="cap">В том числе</span>
+          </div>
+          <div class="kv">
+            <span class="cap">НДС (<span id="p_vatRate2">22</span>%) </span>
+            <span id="p_vatAmount2"></span>
+          </div>
+
+          <div class="mp">М.П. (штампа)</div>
+
+          <div class="sign-row" style="margin-top:5mm;">
+            <b style="font-size:8pt;">Главный бухгалтер</b>
+            <div class="line" style="margin-top:1mm;">
+              <div class="fill"></div>
+              <div class="name" id="p_acc2">&nbsp;</div>
+            </div>
+            <div style="display:flex; gap:14mm;">
+              <span class="cap-small">подпись</span>
+              <span class="cap-small">расшифровка подписи</span>
+            </div>
+          </div>
+
+          <div class="sign-row" style="margin-top:4mm;">
+            <b style="font-size:8pt;">Кассир</b>
+            <div class="line" style="margin-top:1mm;">
+              <div class="fill"></div>
+              <div class="name" id="p_cashier2">&nbsp;</div>
+            </div>
+            <div style="display:flex; gap:14mm;">
+              <span class="cap-small">подпись</span>
+              <span class="cap-small">расшифровка подписи</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- число -> пропись (рубли и копейки) ----------
+function numToWordsRu(n, unitsGender){
+  unitsGender = unitsGender || 'm';
+  const teens  = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+  const tens   = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+  const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+  const commonOnes = ['','','','три','четыре','пять','шесть','семь','восемь','девять'];
+
+  function digitWord(d, gender){
+    if (d === 1) return gender === 'f' ? 'одна' : (gender === 'n' ? 'одно' : 'один');
+    if (d === 2) return gender === 'f' ? 'две' : 'два';
+    return commonOnes[d];
+  }
+
+  function plural(n, forms){
+    n = Math.abs(n) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return forms[2];
+    if (n1 > 1 && n1 < 5) return forms[1];
+    if (n1 === 1) return forms[0];
+    return forms[2];
+  }
+
+  function threeDigits(num, gender){
+    const words = [];
+    const h = Math.floor(num/100);
+    const t = num % 100;
+    const o = num % 10;
+    if (h) words.push(hundreds[h]);
+    if (t >= 10 && t < 20){
+      words.push(teens[t-10]);
+    } else {
+      if (Math.floor(t/10)) words.push(tens[Math.floor(t/10)]);
+      if (o) words.push(digitWord(o, gender));
+    }
+    return words;
+  }
+
+  if (n === 0) return 'ноль';
+
+  const groups = [
+    { div: 1000000000, gender:'m', forms:['миллиард','миллиарда','миллиардов'] },
+    { div: 1000000,     gender:'m', forms:['миллион','миллиона','миллионов'] },
+    { div: 1000,         gender:'f', forms:['тысяча','тысячи','тысяч'] },
+    { div: 1,            gender:unitsGender, forms:null }
+  ];
+
+  let rest = n;
+  let out = [];
+  for (const g of groups){
+    const count = Math.floor(rest / g.div);
+    rest = rest % g.div;
+    if (count > 0){
+      out = out.concat(threeDigits(count, g.gender));
+      if (g.forms) out.push(plural(count, g.forms));
+    }
+  }
+  return out.join(' ');
+}
+
+function pluralForms(n, forms){
+  n = Math.abs(n) % 100;
+  const n1 = n % 10;
+  if (n > 10 && n < 20) return forms[2];
+  if (n1 > 1 && n1 < 5) return forms[1];
+  if (n1 === 1) return forms[0];
+  return forms[2];
+}
+
+function subunitWords(sub, forms, gender){
+  const words = sub === 0 ? 'ноль' : numToWordsRu(sub, gender);
+  return words + ' ' + pluralForms(sub, forms);
+}
+
+function rubWords(amount, currencyForms, currencyGender, subunitForms, subunitGender){
+  currencyForms = currencyForms || ['рубль','рубля','рублей'];
+  currencyGender = currencyGender || 'm';
+  subunitForms = subunitForms || ['копейка','копейки','копеек'];
+  subunitGender = subunitGender || 'f';
+
+  amount = Math.round(amount * 100) / 100;
+  const rub = Math.floor(amount);
+  const kop = Math.round((amount - rub) * 100);
+  const rubWordsStr = numToWordsRu(rub, currencyGender);
+  const rubForm = pluralForms(rub, currencyForms);
+  let s = capitalize(rubWordsStr) + ' ' + rubForm + ' ' + subunitWords(kop, subunitForms, subunitGender);
+  return s;
+}
+
+function capitalize(s){
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// понимает "56000", "56000.69", "56000,69", "56 043,69", "56.043,69", "56,043.69"
+function parseAmount(raw){
+  if (!raw) return 0;
+  let s = raw.replace(/[\s\u00A0]+/g, ''); // убрать пробелы (в т.ч. неразрывные)
+  s = s.replace(/[^0-9.,]/g, '');
+  if (s === '') return 0;
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot   = s.lastIndexOf('.');
+  const lastSep   = Math.max(lastComma, lastDot);
+
+  if (lastSep === -1){
+    const v = parseFloat(s);
+    return isNaN(v) ? 0 : v;
+  }
+
+  const fracPart = s.slice(lastSep + 1).replace(/[.,]/g, '');
+  // копейки — это 1 или 2 цифры после последнего разделителя,
+  // иначе разделитель — это разделитель тысяч, а не десятичный
+  if (fracPart.length === 1 || fracPart.length === 2){
+    const intPart = s.slice(0, lastSep).replace(/[.,]/g, '');
+    const v = parseFloat((intPart || '0') + '.' + fracPart);
+    return isNaN(v) ? 0 : v;
+  } else {
+    const v = parseFloat(s.replace(/[.,]/g, ''));
+    return isNaN(v) ? 0 : v;
+  }
+}
+
+function formatMoney(amount){
+  amount = Math.round(amount * 100) / 100;
+  const rub = Math.floor(amount);
+  const kop = Math.round((amount - rub) * 100);
+  return rub.toLocaleString('ru-RU') + '-' + String(kop).padStart(2,'0');
+}
+
+function formatDateRu(iso){
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function set(id, val){
+  const el = document.getElementById(id);
+  if (el) el.textContent = (val === '' || val === null || val === undefined) ? '\u00A0' : val;
+}
+
+// ---------- пресеты валют ----------
+const CURRENCY_PRESETS = {
+  RUB: { forms:'рубль,рубля,рублей', gender:'m', abbr:'руб.', subForms:'копейка,копейки,копеек', subGender:'f' },
+  USD: { forms:'доллар,доллара,долларов', gender:'m', abbr:'$', subForms:'цент,цента,центов', subGender:'m' },
+  EUR: { forms:'евро,евро,евро', gender:'m', abbr:'€', subForms:'цент,цента,центов', subGender:'m' },
+  KZT: { forms:'тенге,тенге,тенге', gender:'m', abbr:'₸', subForms:'тиын,тиына,тиынов', subGender:'m' },
+  BYN: { forms:'рубль,рубля,рублей', gender:'m', abbr:'Br', subForms:'копейка,копейки,копеек', subGender:'f' }
+};
+
+function applyCurrencyPreset(){
+  const key = document.getElementById('currencyPreset').value;
+  if (key === 'CUSTOM') return;
+  const p = CURRENCY_PRESETS[key];
+  if (!p) return;
+  document.getElementById('currencyForms').value = p.forms;
+  document.getElementById('currencyGender').value = p.gender;
+  document.getElementById('currencyAbbr').value = p.abbr;
+  document.getElementById('subunitForms').value = p.subForms;
+  document.getElementById('subunitGender').value = p.subGender;
+}
+
+document.getElementById('currencyPreset').addEventListener('change', () => {
+  applyCurrencyPreset();
+  render();
+});
+['currencyForms','currencyGender','currencyAbbr','subunitForms','subunitGender'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('currencyPreset').value = 'CUSTOM';
+    render();
+  });
+  document.getElementById(id).addEventListener('change', () => {
+    document.getElementById('currencyPreset').value = 'CUSTOM';
+    render();
+  });
+});
+
+// ---------- запоминаем ФИО кассира ----------
+const CASHIER_KEY = 'pko_cashier_v1';
+
+function loadCashier(){
+  try{
+    const v = localStorage.getItem(CASHIER_KEY);
+    if (v) document.getElementById('cashierName').value = v;
+  }catch(e){}
+}
+document.getElementById('cashierName').addEventListener('input', () => {
+  try{ localStorage.setItem(CASHIER_KEY, document.getElementById('cashierName').value); }catch(e){}
+  render();
+});
+
+// ---------- автонумерация ПКО ----------
+const STORAGE_KEY = 'pko_autonum_v1';
+
+function loadAutoNum(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    document.getElementById('autoNumEnabled').checked = !!data.enabled;
+    if (data.next) document.getElementById('nextPkoNo').value = data.next;
+  }catch(e){}
+}
+
+function saveAutoNum(){
+  const enabled = document.getElementById('autoNumEnabled').checked;
+  const next = document.getElementById('nextPkoNo').value;
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({enabled, next}));
+  }catch(e){}
+}
+
+function applyAutoNumToField(){
+  const enabled = document.getElementById('autoNumEnabled').checked;
+  const pkoField = document.getElementById('pkoNo');
+  if (enabled){
+    pkoField.value = document.getElementById('nextPkoNo').value;
+    pkoField.disabled = true;
+    pkoField.placeholder = 'подставляется автоматически';
+  } else {
+    pkoField.disabled = false;
+    pkoField.placeholder = 'по умолчанию = № заказа';
+  }
+}
+
+document.getElementById('autoNumEnabled').addEventListener('change', () => {
+  applyAutoNumToField();
+  saveAutoNum();
+  render();
+});
+document.getElementById('nextPkoNo').addEventListener('input', () => {
+  applyAutoNumToField();
+  saveAutoNum();
+  render();
+});
+
+window.addEventListener('afterprint', () => {
+  const enabled = document.getElementById('autoNumEnabled').checked;
+  if (!enabled) return;
+  const nextField = document.getElementById('nextPkoNo');
+  const current = parseInt(nextField.value, 10) || 1;
+  nextField.value = current + 1;
+  applyAutoNumToField();
+  saveAutoNum();
+  render();
+});
+
+function parseForms(str, fallback){
+  const parts = (str || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  while (parts.length < 3) parts.push(parts[parts.length - 1]);
+  return parts;
+}
+
+function render(){
+  const orderNo   = document.getElementById('orderNo').value.trim();
+  const amount    = parseAmount(document.getElementById('amount').value);
+  const dateIso   = document.getElementById('docDate').value;
+  const client    = document.getElementById('clientName').value.trim();
+  const pkoNoRaw  = document.getElementById('pkoNo').value.trim();
+  const pkoNo     = pkoNoRaw || orderNo;
+  const vatRate   = parseFloat(document.getElementById('vatRate').value) || 0;
+  const orgName   = document.getElementById('orgName').value.trim() || 'ООО "ОТДЕЛКИНО"';
+  const okpo      = document.getElementById('okpo').value.trim();
+  const accountant= document.getElementById('accountant').value.trim();
+  const cashierName= document.getElementById('cashierName').value.trim();
+  const currencyForms = parseForms(document.getElementById('currencyForms').value, ['рубль','рубля','рублей']);
+  const currencyGender = document.getElementById('currencyGender').value;
+  const currencyAbbr = document.getElementById('currencyAbbr').value.trim() || 'руб.';
+  const subunitForms = parseForms(document.getElementById('subunitForms').value, ['копейка','копейки','копеек']);
+  const subunitGender = document.getElementById('subunitGender').value;
+  const attachment= document.getElementById('attachment').value.trim();
+
+  const dateStr = formatDateRu(dateIso);
+  const basisText = 'Оплата заказа №' + (orderNo ? ' ' + orderNo : '');
+  const amountWords = amount ? rubWords(amount, currencyForms, currencyGender, subunitForms, subunitGender) : '';
+  const vatAmount = amount ? (amount * vatRate / (100 + vatRate)) : 0;
+  const vatAmountStr = amount ? formatMoney(vatAmount) + ' ' + currencyAbbr : '';
+
+  set('p_orgName1', orgName);
+  set('p_orgName2', orgName);
+  set('p_okpo', okpo);
+  set('p_pkoNo', pkoNo);
+  set('p_pkoNo2', pkoNo);
+  set('p_date1', dateStr);
+  set('p_date2', dateStr);
+  set('p_client1', client);
+  set('p_client2', client);
+  set('p_basis1', basisText);
+  set('p_basis2', basisText);
+  set('p_amountNum', amount ? formatMoney(amount) : '0-00');
+  set('p_amountNum2', amount ? formatMoney(amount) : '');
+  set('p_amountWords', amountWords);
+  set('p_amountWords2', amountWords);
+  set('p_vatRate1', vatRate);
+  set('p_vatRate2', vatRate);
+  set('p_vatAmount1', vatAmountStr);
+  set('p_vatAmount2', vatAmountStr);
+  set('p_attachment', attachment);
+  set('p_acc1', accountant);
+  set('p_acc2', accountant);
+  set('p_cashier1', cashierName);
+  set('p_cashier2', cashierName);
+}
+
+// живое обновление
+document.querySelectorAll('.panel input').forEach(el => {
+  el.addEventListener('input', render);
+});
+
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.querySelectorAll('.panel input').forEach(el => {
+    if (['orgName','okpo','accountant','attachment','vatRate','autoNumEnabled','nextPkoNo','cashierName'].includes(el.id)) return;
+    el.value = '';
+  });
+  applyAutoNumToField();
+  render();
+});
+
+// дата по умолчанию — сегодня
+document.getElementById('docDate').value = new Date().toISOString().slice(0,10);
+loadCashier();
+loadAutoNum();
+applyAutoNumToField();
+render();
+</script>
+
+</body>
+</html>
